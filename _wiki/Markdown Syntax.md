@@ -12,12 +12,16 @@
 * [[Tasks]] -- things to be done _yesterday_!!!
 * [[Project Gutenberg]] -- good books are power.
 * Scratchpad -- various temporary stuff.
+* IT Tech Log
+* Rupi.Monkey.D
 
 # h1
 ## h2
 ### h3
 #### h4
 ##### h5
+###### h6
+###### h6
 ###### h6
 
 Heading level 1
