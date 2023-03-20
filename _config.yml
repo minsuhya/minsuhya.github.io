@@ -16,11 +16,11 @@ minimal_mistakes_skin    : "default" # "air", "aqua", "contrast", "dark", "dirt"
 
 # Site Settings
 locale                   : "en-US"
-title                    : "IT Tech Log"
+title                    : "GilliLab - IT LOG"
 title_separator          : "-"
 subtitle                 : # site tagline that appears below site title in masthead
-name                     : "루피"
-description              : "IT 기술 로그"
+name                     : "rupi"
+description              : "GilliLab - IT LOG"
 url                      : "https://minsuhya.github.io" # the base hostname & protocol for your site e.g. "https://mmistakes.github.io"
 baseurl                  : # the subpath of your site, e.g. "/blog"
 repository               : # GitHub username/repo-name e.g. "mmistakes/minimal-mistakes"
