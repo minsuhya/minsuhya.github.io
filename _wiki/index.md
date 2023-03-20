@@ -1,7 +1,5 @@
-### [SW공학](SW공학)
+### [Software Engineering](sw/sw)
 
-### [SW공학-최은만](SW공학-최은만)
+### [Software Engineering - Choi](sw/sw-choi)
 
-### [Markdown](Markdown)
-
-### [전자신문](전자신문)
+### [Markdown](markdown/markdown)
