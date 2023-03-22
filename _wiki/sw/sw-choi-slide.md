@@ -5,12 +5,14 @@ backgroundImage: url('https://marp.app/assets/hero-background.svg');
 header: 'Software Engineering'
 footer: '김준혁 - 정보관리기술사'
 style: |
-  section {background-color: #eeeeee; font-size: 32px; font-family: 'Binggrae'; font-weight:bold;}
-  ul {font-size: 30px; font-family: 'Binggrae'; font-weight: bold;}
-  h1 {font-size: 50px; color: #000; font-weight: bold; font-family: 'Binggrae'}
+  section {background-color: #eeeeee; font-size: 32px; font-family: 'Binggrae' 'Malgun Gothic'; font-weight:bold;}
+  ul {font-size: 30px; font-family: 'Binggrae' 'Malgun Gothic'; font-weight: bold;}
+  h1 {font-size: 50px; color: #000; font-weight: bold; font-family: 'Binggrae'  'Malgun Gothic';}
   h3 {color: #4E6181; font-weight:bold;}
   header {background-color: black; color: white; padding: 0px 0px 0px 20px; height: 50px; font-weight: bold;}
   footer {background-color: #cccccc; color: #333333; font-weight: bold;}
+  pre {background-color: #333333;}
+  pre code{color:white; font-family: 'Binggrae' 'Malgun Gothic';}
 size: 16:9
 marp: true
 ---
@@ -19,20 +21,19 @@ marp: true
     하드웨어를 동작시켜 사용자가 작업을 편리하게 수행하도록하는 프로그램과 자료구조
     프로그램 개발, 운용, 유지보수 관련 모든 문서 및 정보 포함
 
-	상품성   : 개발 SW는 상품화되어 판매된다.
+	상품성   : 개발 SW는 상품화 및 판매
     견고성   : 일부 수정은 SW 전체 영향 가능
-    복잡성   : 개발과정이 복잡, 비표준화
+    복잡성   : 개발과정 복잡, 비표준화
     순응성   : 사용자 요구나 환경 변화에 적절히 변경
-    비가시성 : SW 구조는 외관으로 나타나지 않고 코드로 Hidden
+    비가시성 : SW 구조는 외관으로 나타나지 않고 코드로 숨겨진다.
     비마모성 : 마모되거나 소멸되지 않는다.
     비제조성 : 하드웨어처럼 제작이 아닌 논리적 절차에 맞게 개발
 	비과학성 : 과학적이 아니라 조직, 인력, 시간, 절차 등 중심
 
 ---
-
-# 분류
-    기능에 의한 분류           : 시스템, 응용
-    사용 분야에 의한 분류      : 프로그래밍, 문서, 통신, 분산처리, 멀티미디어, 개발, 인공지능
+# SW 분류
+    기능에 의한 분류         : 시스템, 응용
+    사용 분야에 의한 분류     : 프로그래밍, 문서, 통신, 분산처리, 멀티미디어, 개발, 인공지능
     개발 과정 성격에 따른 분류 : 프로토타입, 프로젝트 산출물, 패키지
     정보처리 방법에 따른 분류  : 일괄처리, 온라인, 실시간
 
