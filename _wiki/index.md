@@ -1,7 +1,7 @@
-### [Software Engineering](sw/sw)
+### [Software Engineering](/sw/sw)
 
-### [Software Engineering - Choi](sw/sw-choi)
+### [Software Engineering - Choi](/sw/sw-choi)
 
-### [Markdown](markdown/markdown)
+### [Markdown](/markdown/markdown)
 
-### [ADP - 통계분석](adp/adp-statistics)
+### [ADP - 통계분석](/adp/adp-statistics)
