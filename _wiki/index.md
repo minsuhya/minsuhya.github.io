@@ -4,4 +4,4 @@
 
 ### [Markdown](/markdown/markdown)
 
-### [ADP - 통계분석](/adp/adp-statistics.md)
+### [ADP - 통계분석](/_wiki/adp/adp-statistics)
