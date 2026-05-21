@@ -29,9 +29,21 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           fetch-depth: 0
+
+      - name: Fetch trusted prompt files from base ref
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          mkdir -p trusted-prompts
+          git show "${BASE_SHA}:.github/prompts/llm-prereview-system.txt" \
+            > trusted-prompts/llm-prereview-system.txt 2>/dev/null \
+            || cp .github/prompts/llm-prereview-system.txt trusted-prompts/ 2>/dev/null || true
+          git show "${BASE_SHA}:.github/prompts/llm-prereview-system.ko.txt" \
+            > trusted-prompts/llm-prereview-system.ko.txt 2>/dev/null \
+            || cp .github/prompts/llm-prereview-system.ko.txt trusted-prompts/ 2>/dev/null || true
 
       - name: Generate PR diff
         id: diff
@@ -48,7 +60,7 @@ jobs:
         run: |
           echo "::warning::Diff too large for LLM pre-review (${{ steps.diff.outputs.diff_lines }} lines > ${MAX_DIFF_LINES}). Human review required."
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         if: ${{ fromJson(steps.diff.outputs.diff_lines) <= fromJson(env.MAX_DIFF_LINES) }}
         with:
           python-version: '3.12'
@@ -80,12 +92,12 @@ jobs:
           char_limit = int(os.environ.get('DIFF_CHAR_LIMIT', '30000'))
           model = os.environ.get('ANTHROPIC_MODEL', 'claude-sonnet-4-6')
 
-          # Load system prompt — fall back to EN if KO file missing
-          prompt_file = '.github/prompts/llm-prereview-system.ko.txt' if prompt_lang == 'ko' \
-                        else '.github/prompts/llm-prereview-system.txt'
+          # Load system prompt from trusted base-ref copy (not PR head)
+          prompt_file = 'trusted-prompts/llm-prereview-system.ko.txt' if prompt_lang == 'ko' \
+                        else 'trusted-prompts/llm-prereview-system.txt'
           if not os.path.exists(prompt_file):
-              print(f"::warning::Prompt file {prompt_file} not found, falling back to default")
-              prompt_file = '.github/prompts/llm-prereview-system.txt'
+              print(f"::warning::Trusted prompt file {prompt_file} not found, falling back to EN")
+              prompt_file = 'trusted-prompts/llm-prereview-system.txt'
           system_prompt = open(prompt_file).read()
           print(f"Using model={model}, prompt={prompt_file}")
 
@@ -161,7 +173,7 @@ jobs:
 
       - name: Post review comment
         if: always() && hashFiles('llm-review.json') != ''
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
         env:
           # Unique marker for safe comment deletion — avoids matching other bots
           COMMENT_MARKER: '<!-- LLM_PREREVIEW_BOT_COMMENT_v1 -->'
@@ -178,6 +190,13 @@ jobs:
               return;
             }
 
+            const ALLOWED_SEVERITY = new Set(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']);
+            const sanitize = (s, max = 500) =>
+              String(s ?? '')
+                .replace(/[`<>]/g, '')
+                .replace(/@/g, '@​')
+                .slice(0, max);
+
             const icon = { CRITICAL: '🔴', HIGH: '🟠', MEDIUM: '🟡', LOW: '🔵' };
             const signals = review.risk_signals || [];
             const critical = signals.filter(s => s.severity === 'CRITICAL').length;
@@ -192,22 +211,23 @@ jobs:
               : `## ✅ LLM Pre-Review — Clean`;
 
             let body = `${COMMENT_MARKER}\n${header}\n\n`;
-            body += `> **Summary**: ${review.summary || '(none)'}\n`;
+            body += `> **Summary**: ${sanitize(review.summary || '(none)', 1000)}\n`;
             body += `> **Confidence**: ${Math.round((review.confidence_score || 0) * 100)}%\n\n`;
 
             if (signals.length > 0) {
               body += `### Findings\n\n`;
               for (const s of signals) {
-                const i = icon[s.severity] || '⚪';
-                const ref = s.line_reference ? ` \`${s.line_reference}\`` : '';
-                body += `${i} **[${s.severity}]** \`${s.dimension}\`${ref} — ${s.explanation}\n`;
+                const sev = ALLOWED_SEVERITY.has(s.severity) ? s.severity : 'LOW';
+                const i = icon[sev] || '⚪';
+                const ref = s.line_reference ? ` \`${sanitize(s.line_reference, 100)}\`` : '';
+                body += `${i} **[${sev}]** \`${sanitize(s.dimension, 80)}\`${ref} — ${sanitize(s.explanation)}\n`;
               }
               body += '\n';
             }
 
             body += `### Recommended Human Focus\n\n`;
-            (review.suggested_human_focus || []).forEach((area, idx) => {
-              body += `${idx + 1}. ${area}\n`;
+            (review.suggested_human_focus || []).slice(0, 10).forEach((area, idx) => {
+              body += `${idx + 1}. ${sanitize(area)}\n`;
             });
 
             body += `\n---\n`;

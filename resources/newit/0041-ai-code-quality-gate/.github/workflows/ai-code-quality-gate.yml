@@ -22,7 +22,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           fetch-depth: 0
 
@@ -30,7 +30,7 @@ jobs:
       # Personal accounts: no license key required.
       # Organization accounts: set GITLEAKS_LICENSE secret (free key from gitleaks.io).
       # Docs: https://github.com/gitleaks/gitleaks-action
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7  # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
@@ -46,11 +46,11 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -152,9 +152,9 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -198,7 +198,7 @@ jobs:
 #     runs-on: ubuntu-latest
 #     if: hashFiles('**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx') != ''
 #     steps:
-#       - uses: actions/checkout@v4
+#       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 #       - uses: actions/setup-node@v4
 #         with:
 #           node-version: '20'
@@ -211,7 +211,7 @@ jobs:
 #     runs-on: ubuntu-latest
 #     if: hashFiles('package.json') != ''
 #     steps:
-#       - uses: actions/checkout@v4
+#       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 #       - uses: actions/setup-node@v4
 #         with:
 #           node-version: '20'
