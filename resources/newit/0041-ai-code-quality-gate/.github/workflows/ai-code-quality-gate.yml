@@ -62,9 +62,10 @@ jobs:
 
       - name: Detect AI-generated PR flag
         id: ai-flag
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          BODY="${{ github.event.pull_request.body }}"
-          if echo "$BODY" | grep -qiE "ai-generated|copilot|cursor|chatgpt|claude"; then
+          if echo "$PR_BODY" | grep -qiE "ai-generated|copilot|cursor|chatgpt|claude"; then
             echo "ai_generated=true" >> "$GITHUB_OUTPUT"
             echo "::notice::AI-generated PR detected — applying extended ruleset"
           else

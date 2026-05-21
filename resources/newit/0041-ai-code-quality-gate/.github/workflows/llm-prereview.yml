@@ -35,8 +35,10 @@ jobs:
 
       - name: Generate PR diff
         id: diff
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          git diff origin/${{ github.base_ref }}...HEAD > pr.diff
+          git diff "origin/${BASE_REF}...HEAD" > pr.diff
           LINES=$(wc -l < pr.diff)
           echo "diff_lines=${LINES}" >> "$GITHUB_OUTPUT"
           echo "Diff size: ${LINES} lines (limit: ${MAX_DIFF_LINES})"
