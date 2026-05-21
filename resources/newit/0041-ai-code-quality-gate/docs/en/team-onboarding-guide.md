@@ -24,7 +24,7 @@ Without a gate, teams typically see:
 Every PR goes through three layers automatically:
 
 **Layer 1 — Static Analysis** (runs in ~2 min, fully automated)  
-Gitleaks catches hardcoded secrets. Bandit/Semgrep catches known vulnerability patterns. Radon flags functions with cyclomatic complexity above 20. Coverage enforcement ensures tests weren't skipped.  
+Gitleaks catches hardcoded secrets. Bandit/Semgrep catches known vulnerability patterns — both production code and test files are scanned. Radon flags functions with cyclomatic complexity above 20. Coverage enforcement ensures tests weren't skipped.  
 → *Hard blocker on CRITICAL findings. Soft warning on everything else.*
 
 **Layer 2 — LLM Pre-Review** (runs in ~1 min, fully automated)  

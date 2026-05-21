@@ -118,9 +118,9 @@ PR 오픈
   │
   ▼
 [ Layer 1 ] ai-code-quality-gate.yml (자동 정적 분석)
-  ├─ Gitleaks 시크릿 스캔        (gitleaks/gitleaks-action@v2)
-  ├─ Bandit SAST (Python 보안)   (HIGH/HIGH = 차단)
-  ├─ Semgrep SAST                (AI flag 시 OWASP/security-audit 추가)
+  ├─ Gitleaks 시크릿 스캔        (gitleaks/gitleaks-action — 커밋 SHA 고정)
+  ├─ Bandit SAST (Python 보안)   (HIGH/HIGH = 차단, tests/ 포함)
+  ├─ Semgrep SAST                (AI flag 시 OWASP/security-audit 추가, tests/ 포함)
   ├─ Radon 복잡도                (CC > 20 = 차단)
   └─ pytest-cov                   (커버리지 < 70% = 차단)
   │
@@ -134,6 +134,22 @@ PR 오픈
 [ Layer 3 ] PR 템플릿 (인간 리뷰)
   25항목 체크리스트 — 자동화가 못 잡는 비즈니스 로직·아키텍처 검증
 ```
+
+---
+
+## 보안 강화 사항 (Security Hardening)
+
+이 리소스 팩에는 GitHub Actions 워크플로우 보안을 위한 다음 조치가 적용되어 있습니다:
+
+| 항목 | 조치 | 이유 |
+|------|------|------|
+| 서드파티 액션 버전 고정 | `@v4` 대신 40자 커밋 SHA 사용 | 태그 재정의를 통한 공급망 공격 방지 |
+| LLM 시스템 프롬프트 격리 | PR head가 아닌 base 브랜치에서 로드 | 공격자가 프롬프트 파일을 교체해 리뷰 결과를 조작하는 것을 방지 |
+| LLM 출력 sanitize | PR 코멘트 게시 전 특수문자·멘션 제거 | 악성 링크·`@mention` 삽입 방지 |
+| PR body / 브랜치명 안전 처리 | `env:` 블록을 통해 환경변수로 전달 | `run:` 블록 직접 interpolation을 통한 shell injection 방지 |
+| 테스트 코드 보안 스캔 포함 | Bandit/Semgrep에서 `tests/` 제외 해제 | `conftest.py` 등 테스트 픽스처의 취약 코드 탐지 |
+
+> 팀 레포에 복사할 때 SHA 값은 그대로 유지하세요. 업그레이드 시 [공식 릴리즈](https://github.com/actions/checkout/releases)에서 새 SHA를 확인하세요.
 
 ---
 
