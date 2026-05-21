@@ -1,0 +1,80 @@
+# Pre-commit hook configuration for AI code quality gate
+#
+# Strongly recommended by the lecture (Scene 38):
+# "install Gitleaks and your linter as pre-commit hooks today — not this sprint, today.
+#  Takes fifteen minutes."
+#
+# Setup:
+#   pip install pre-commit
+#   pre-commit install
+#
+# Manual run on all files:
+#   pre-commit run --all-files
+#
+# Skip on a specific commit (use sparingly):
+#   git commit --no-verify
+#
+# Official docs:
+#   - pre-commit framework: https://pre-commit.com
+#   - Gitleaks hooks: https://github.com/gitleaks/gitleaks/blob/master/.pre-commit-hooks.yaml
+#   - Bandit hooks: https://github.com/PyCQA/bandit/blob/main/.pre-commit-hooks.yaml
+
+repos:
+  # ── Secret scanning ────────────────────────────────────────────────────────
+  # Catches hardcoded credentials, API keys, tokens before they reach the repo.
+  # Critical for AI-generated code — Copilot/Cursor frequently suggest fake-looking
+  # but real keys from training data.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.2
+    hooks:
+      - id: gitleaks
+
+  # ── Python security (skip if not a Python project) ─────────────────────────
+  # Bandit catches the security anti-patterns AI most commonly generates:
+  # eval(), subprocess shell=True, weak cryptography, insecure deserialization.
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.10
+    hooks:
+      - id: bandit
+        args:
+          - "-ll"   # Report MEDIUM severity and above
+          - "--exclude"
+          - ".venv,venv,node_modules,tests,.tox,build,dist"
+        files: \.py$
+
+  # ── Standard hygiene ───────────────────────────────────────────────────────
+  # Prevents the most common AI-generated junk:
+  #   - trailing whitespace AI loves to introduce
+  #   - missing newlines at end of file
+  #   - merge conflict markers committed by accident
+  #   - large binary files (Copilot sometimes suggests committing data files)
+  #   - private keys leaked through "example" configs
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: detect-private-key
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+
+  # ── JavaScript / TypeScript projects: uncomment when applicable ───────────
+  #
+  # - repo: https://github.com/pre-commit/mirrors-eslint
+  #   rev: v9.18.0
+  #   hooks:
+  #     - id: eslint
+  #       files: \.(js|jsx|ts|tsx)$
+  #       additional_dependencies:
+  #         - eslint@9.18.0
+  #         - typescript@5.4.0
+  #
+  # - repo: https://github.com/pre-commit/mirrors-prettier
+  #   rev: v4.0.0-alpha.8
+  #   hooks:
+  #     - id: prettier
+  #       files: \.(js|jsx|ts|tsx|json|css|md|yaml|yml)$

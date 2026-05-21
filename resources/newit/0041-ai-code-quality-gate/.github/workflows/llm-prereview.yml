@@ -1,0 +1,260 @@
+name: AI Code Quality Gate — Layer 2 LLM Pre-Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: llm-prereview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# Override these via repository variables (Settings > Variables > Actions)
+env:
+  # LLM prompt language: 'en' or 'ko'
+  LLM_PROMPT_LANG: ${{ vars.LLM_PROMPT_LANG || 'en' }}
+  # Skip LLM review for PRs larger than this many lines
+  MAX_DIFF_LINES: ${{ vars.MAX_DIFF_LINES || '500' }}
+  # Truncate diff at this many characters before sending to LLM (1M context can handle much more, but cost scales with input)
+  DIFF_CHAR_LIMIT: ${{ vars.DIFF_CHAR_LIMIT || '30000' }}
+  # Anthropic model — change to claude-opus-4-7 for higher quality at 1.67x cost
+  # Docs: https://platform.claude.com/docs/en/docs/about-claude/models/overview
+  ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL || 'claude-sonnet-4-6' }}
+
+jobs:
+  llm-prereview:
+    name: LLM Semantic Pre-Review
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate PR diff
+        id: diff
+        run: |
+          git diff origin/${{ github.base_ref }}...HEAD > pr.diff
+          LINES=$(wc -l < pr.diff)
+          echo "diff_lines=${LINES}" >> "$GITHUB_OUTPUT"
+          echo "Diff size: ${LINES} lines (limit: ${MAX_DIFF_LINES})"
+
+      - name: Skip oversized diffs
+        if: ${{ fromJson(steps.diff.outputs.diff_lines) > fromJson(env.MAX_DIFF_LINES) }}
+        run: |
+          echo "::warning::Diff too large for LLM pre-review (${{ steps.diff.outputs.diff_lines }} lines > ${MAX_DIFF_LINES}). Human review required."
+
+      - uses: actions/setup-python@v5
+        if: ${{ fromJson(steps.diff.outputs.diff_lines) <= fromJson(env.MAX_DIFF_LINES) }}
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Anthropic SDK
+        if: ${{ fromJson(steps.diff.outputs.diff_lines) <= fromJson(env.MAX_DIFF_LINES) }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install 'anthropic>=0.40.0'
+
+      - name: Run LLM pre-review
+        if: ${{ fromJson(steps.diff.outputs.diff_lines) <= fromJson(env.MAX_DIFF_LINES) }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          python3 - <<'PYEOF'
+          import anthropic
+          import json
+          import os
+          import sys
+
+          diff_content = open('pr.diff').read()
+          pr_title = os.environ.get('PR_TITLE', '(no title)')
+          pr_body = (os.environ.get('PR_BODY', '') or '')[:1000]
+          prompt_lang = os.environ.get('LLM_PROMPT_LANG', 'en')
+          char_limit = int(os.environ.get('DIFF_CHAR_LIMIT', '30000'))
+          model = os.environ.get('ANTHROPIC_MODEL', 'claude-sonnet-4-6')
+
+          # Load system prompt — fall back to EN if KO file missing
+          prompt_file = '.github/prompts/llm-prereview-system.ko.txt' if prompt_lang == 'ko' \
+                        else '.github/prompts/llm-prereview-system.txt'
+          if not os.path.exists(prompt_file):
+              print(f"::warning::Prompt file {prompt_file} not found, falling back to default")
+              prompt_file = '.github/prompts/llm-prereview-system.txt'
+          system_prompt = open(prompt_file).read()
+          print(f"Using model={model}, prompt={prompt_file}")
+
+          # Truncate diff with explicit notice
+          diff_truncated = diff_content[:char_limit]
+          truncation_note = ""
+          if len(diff_content) > char_limit:
+              truncation_note = f"\n\n[NOTE: Diff was truncated from {len(diff_content)} to {char_limit} chars]"
+
+          user_prompt = f"""PR Title: {pr_title}
+
+          PR Description:
+          {pr_body}
+
+          Code diff:
+          ```diff
+          {diff_truncated}
+          ```{truncation_note}
+
+          Analyze this diff and return ONLY valid JSON matching the schema in your system prompt. No prose outside the JSON."""
+
+          client = anthropic.Anthropic()
+          try:
+              response = client.messages.create(
+                  model=model,
+                  max_tokens=2000,
+                  system=system_prompt,
+                  messages=[{"role": "user", "content": user_prompt}]
+              )
+              raw = response.content[0].text.strip()
+              # Strip markdown code fences if model wrapped its response
+              if raw.startswith("```"):
+                  parts = raw.split("```")
+                  if len(parts) >= 2:
+                      raw = parts[1]
+                      if raw.startswith("json"):
+                          raw = raw[4:]
+              result = json.loads(raw.strip())
+          except json.JSONDecodeError as e:
+              print(f"::warning::LLM returned invalid JSON: {e}")
+              print(f"Raw response (first 500 chars): {raw[:500] if 'raw' in dir() else 'N/A'}")
+              result = {
+                  "risk_signals": [],
+                  "confidence_score": 0,
+                  "suggested_human_focus": [
+                      "JSON parse error — review diff manually",
+                      "Check LLM_PROMPT_LANG and prompt file integrity",
+                      "Inspect workflow logs for raw LLM response"
+                  ],
+                  "summary": "LLM pre-review could not parse response — manual review required."
+              }
+          except anthropic.APIError as e:
+              print(f"::error::Anthropic API error: {e}")
+              sys.exit(1)
+          except Exception as e:
+              print(f"::error::LLM pre-review failed: {type(e).__name__}: {e}")
+              sys.exit(1)
+
+          with open('llm-review.json', 'w') as f:
+              json.dump(result, f, indent=2, ensure_ascii=False)
+
+          critical = [r for r in result.get('risk_signals', []) if r.get('severity') == 'CRITICAL']
+          total = len(result.get('risk_signals', []))
+          print(f"LLM pre-review: {total} finding(s), {len(critical)} CRITICAL")
+
+          if critical:
+              for c in critical:
+                  ref = c.get('line_reference') or 'unknown'
+                  print(f"::error file={ref}::{c.get('explanation','(no explanation)')}")
+              print("::error::LLM pre-review found CRITICAL issues — merge blocked")
+              sys.exit(1)
+          PYEOF
+
+      - name: Post review comment
+        if: always() && hashFiles('llm-review.json') != ''
+        uses: actions/github-script@v7
+        env:
+          # Unique marker for safe comment deletion — avoids matching other bots
+          COMMENT_MARKER: '<!-- LLM_PREREVIEW_BOT_COMMENT_v1 -->'
+        with:
+          script: |
+            const fs = require('fs');
+            const COMMENT_MARKER = process.env.COMMENT_MARKER;
+
+            let review;
+            try {
+              review = JSON.parse(fs.readFileSync('llm-review.json', 'utf8'));
+            } catch (e) {
+              console.log('No review file to post:', e.message);
+              return;
+            }
+
+            const icon = { CRITICAL: '🔴', HIGH: '🟠', MEDIUM: '🟡', LOW: '🔵' };
+            const signals = review.risk_signals || [];
+            const critical = signals.filter(s => s.severity === 'CRITICAL').length;
+            const high = signals.filter(s => s.severity === 'HIGH').length;
+
+            const header = critical > 0
+              ? `## 🔴 LLM Pre-Review — ${critical} CRITICAL (merge blocked)`
+              : high > 0
+              ? `## 🟠 LLM Pre-Review — ${high} HIGH severity finding(s)`
+              : signals.length > 0
+              ? `## 🟡 LLM Pre-Review — ${signals.length} advisory finding(s)`
+              : `## ✅ LLM Pre-Review — Clean`;
+
+            let body = `${COMMENT_MARKER}\n${header}\n\n`;
+            body += `> **Summary**: ${review.summary || '(none)'}\n`;
+            body += `> **Confidence**: ${Math.round((review.confidence_score || 0) * 100)}%\n\n`;
+
+            if (signals.length > 0) {
+              body += `### Findings\n\n`;
+              for (const s of signals) {
+                const i = icon[s.severity] || '⚪';
+                const ref = s.line_reference ? ` \`${s.line_reference}\`` : '';
+                body += `${i} **[${s.severity}]** \`${s.dimension}\`${ref} — ${s.explanation}\n`;
+              }
+              body += '\n';
+            }
+
+            body += `### Recommended Human Focus\n\n`;
+            (review.suggested_human_focus || []).forEach((area, idx) => {
+              body += `${idx + 1}. ${area}\n`;
+            });
+
+            body += `\n---\n`;
+            body += `*Layer 1 (static analysis) runs in parallel. `;
+            body += `Layer 3: apply the [25-point checklist](.github/pull_request_template.md) for items automation cannot catch.*`;
+
+            // Safe deletion: only delete comments that start with our unique marker
+            try {
+              const comments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                per_page: 100
+              });
+              for (const c of comments.data) {
+                if (c.body && c.body.startsWith(COMMENT_MARKER)) {
+                  await github.rest.issues.deleteComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: c.id
+                  });
+                }
+              }
+            } catch (e) {
+              console.log('Could not list/delete previous comments:', e.message);
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
+
+# ── Configuration via Repository Variables ──────────────────────────────────
+#
+#   LLM_PROMPT_LANG     — 'en' or 'ko' (default: 'en')
+#   MAX_DIFF_LINES      — Skip LLM review if diff exceeds this many lines (default: 500)
+#   DIFF_CHAR_LIMIT     — Truncate diff at this many chars before sending (default: 30000)
+#   ANTHROPIC_MODEL     — claude-sonnet-4-6 (default) or claude-opus-4-7 (higher quality)
+#
+# ── Bitbucket Pipelines variant ─────────────────────────────────────────────
+# Bitbucket does not support github-script, so replace the comment-posting step with:
+#
+#   - step:
+#       script:
+#         - |
+#           curl -X POST \
+#             -u "$BITBUCKET_USER:$BITBUCKET_APP_PASSWORD" \
+#             -H "Content-Type: application/json" \
+#             -d "{\"content\":{\"raw\":\"$(cat llm-review.json | jq -Rs .)\"}}" \
+#             "https://api.bitbucket.org/2.0/repositories/$WORKSPACE/$REPO/pullrequests/$PR_ID/comments"
