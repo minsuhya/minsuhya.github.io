@@ -6,6 +6,11 @@ YouTube 강의 **["The AI Code Trap: Why Merging Without a Quality Gate Will Bre
 
 채널: [GilliLab NEWIT](https://www.youtube.com/@gillilab)
 
+> ⚠️ **면책 조항 / Disclaimer**  
+> 본 자료는 교육 목적으로 제공되며, **사용으로 인해 발생하는 모든 결과에 대한 책임은 사용자 본인에게 있습니다.**  
+> These Materials are provided for educational purposes. **All responsibility for outcomes arising from use lies solely with the user.**  
+> → 전문 보기: [DISCLAIMER.md](DISCLAIMER.md)
+
 ---
 
 ## 포함 자료 (Contents)
