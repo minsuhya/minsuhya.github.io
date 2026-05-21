@@ -75,7 +75,7 @@ jobs:
       - name: Bandit security scan (HIGH/HIGH = blocker)
         run: |
           bandit -r . -ll -f json -o bandit-report.json \
-            --exclude ".venv,venv,node_modules,tests,.tox,build,dist" || true
+            --exclude ".venv,venv,node_modules,.tox,build,dist" || true
           python3 - <<'EOF'
           import json, sys
           try:
@@ -103,7 +103,7 @@ jobs:
             CONFIGS="--config p/python --config p/security-audit --config p/owasp-top-ten"
           fi
           semgrep $CONFIGS --error --json --output semgrep-report.json \
-            --exclude ".venv" --exclude "tests" --exclude "build" . || true
+            --exclude ".venv" --exclude "build" . || true
           python3 - <<'EOF'
           import json, sys
           try:
@@ -168,8 +168,11 @@ jobs:
 
       - name: Run tests with coverage gate
         run: |
+          case "$COVERAGE_THRESHOLD" in
+            ''|*[!0-9.]*) echo "::error::Invalid COVERAGE_THRESHOLD: ${COVERAGE_THRESHOLD}"; exit 1 ;;
+          esac
           pytest --cov=. --cov-report=json \
-            --cov-fail-under=${COVERAGE_THRESHOLD} \
+            --cov-fail-under="${COVERAGE_THRESHOLD}" \
             --ignore=.venv -q
 
       - name: Coverage summary
